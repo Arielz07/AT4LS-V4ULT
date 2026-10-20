@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% from "partials/icon.html" import icon %}
+{% block content %}
+<section class="audit-hero">
+  <div class="audit-hero-main">
+    <a class="back-link" href="/audits">{{ icon('arrow-left', 14) }} Audit ledger</a>
+    <div class="eyebrow"><span class="status-dot {{ 'is-live' if audit.status == 'complete' else 'is-closed' }}"></span> {{ audit.kind }} · run #{{ audit.id }}</div>
+    <h1>{{ project.name }}</h1>
+    <p class="page-lede">{{ audit.summary or 'Baseline audit has not produced a summary yet.' }}</p>
+    <div class="hero-actions compact">
+      <a class="btn btn-ghost" href="/projects/{{ project.id }}">{{ icon('projects', 15) }} Project</a>
+      {% if can_manage %}
+      <form method="post" action="/projects/{{ project.id }}/audit" class="inline-form">
+        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+        <button class="btn btn-accent" type="submit">{{ icon('play', 15) }} Re-run baseline</button>
+      </form>
+      {% endif %}
+      <a class="btn btn-quiet" href="/exports/findings.csv">{{ icon('download', 15) }} Export findings</a>
+    </div>
+  </div>
+  <div class="audit-score glass">
+    <div class="score-ring big {{ 'score-good' if (audit.score or 0) >= 80 else 'score-watch' if (audit.score or 0) >= 55 else 'score-low' }}" style="--score: {{ audit.score or 0 }}%">
+      <span>{{ audit.score if audit.score is not none else '—' }}</span>
+      <small>/100</small>
+    </div>
+    <div>
+      <span class="kicker">Verdict</span>
+      <strong class="verdict-text">{{ audit.verdict|verdict_label }}</strong>
+      <p>{{ audit.finished_at|time_ago if audit.finished_at else 'in progress' }} · {{ total_findings }} findings</p>
+    </div>
+  </div>
+</section>
+
+<div class="severity-grid">
+  {% for severity in ['critical', 'high', 'medium', 'low', 'info'] %}
+  <a class="severity-card glass severity-card-{{ severity }}" href="/audits/{{ audit.id }}?severity={{ severity }}">
+    <span class="severity-dot severity-{{ severity }}"></span>
+    <strong>{{ counts.get(severity, 0) }}</strong>
+    <span>{{ severity|title }}</span>
+  </a>
+  {% endfor %}
+  <div class="severity-card glass">
+    <span class="severity-dot severity-open"></span>
+    <strong>{{ open_count }}</strong>
+    <span>Open</span>
+  </div>
+</div>
+
+<div class="filter-row">
+  <div class="filter-tabs">
+    <a class="filter-tab {{ 'is-active' if not severity else '' }}" href="/audits/{{ audit.id }}">All</a>
+    {% for item in ['critical', 'high', 'medium', 'low', 'info'] %}
+    <a class="filter-tab {{ 'is-active' if severity == item else '' }}" href="/audits/{{ audit.id }}?severity={{ item }}">{{ item|title }}</a>
+    {% endfor %}
+  </div>
+  <div class="filter-tabs">
+    <a class="filter-tab {{ 'is-active' if not status else '' }}" href="/audits/{{ audit.id }}?severity={{ severity }}">Any status</a>
+    <a class="filter-tab {{ 'is-active' if status == 'open' else '' }}" href="/audits/{{ audit.id }}?severity={{ severity }}&status=open">Open</a>
+    <a class="filter-tab {{ 'is-active' if status == 'resolved' else '' }}" href="/audits/{{ audit.id }}?severity={{ severity }}&status=resolved">Resolved</a>
+    <a class="filter-tab {{ 'is-active' if status == 'dismissed' else '' }}" href="/audits/{{ audit.id }}?severity={{ severity }}&status=dismissed">Dismissed</a>
+  </div>
+</div>
+
+{% if findings %}
+<div class="finding-stack">
+  {% for finding in findings %}
+  <article class="finding-card glass {{ 'is-resolved' if finding.status == 'resolved' else 'is-dismissed' if finding.status == 'dismissed' else '' }}" id="finding-{{ finding.id }}">
+    <div class="finding-card-head">
+      <div class="finding-title-wrap">
+        <span class="severity-dot severity-{{ finding.severity }}"></span>
+        <div>
+          <div class="finding-meta"><span class="severity-text">{{ finding.severity|severity_label }}</span><span class="dot-sep">·</span><span>{{ finding.category }}</span><span class="dot-sep">·</span><span>{{ finding.confidence }}% confidence</span></div>
+          <h2>{{ finding.title }}</h2>
+        </div>
+      </div>
+      <span class="status-chip status-{{ finding.status }}">{{ finding.status }}</span>
+    </div>
+    <p class="finding-detail">{{ finding.detail }}</p>
+    <div class="finding-evidence">
+      <div>
+        <span class="label">Evidence</span>
+        {% if finding.evidence_path %}
+        <a class="mono evidence-link" href="/search?q={{ finding.evidence_path|urlencode }}">{{ icon('file-text', 14) }} {{ finding.evidence_path }}</a>
+        {% else %}
+        <span class="mono dim">project-wide check</span>
+        {% endif %}
+      </div>
+      <div>
+        <span class="label">Recommendation</span>
+        <p>{{ finding.recommendation }}</p>
+      </div>
+    </div>
+    {% if can_manage %}
+    <div class="finding-actions">
+      <form method="post" action="/findings/{{ finding.id }}/status" class="inline-form">
+        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+        <input type="hidden" name="status" value="{{ 'open' if finding.status != 'open' else 'resolved' }}">
+        <button class="btn btn-quiet btn-sm" type="submit">{{ icon('check' if finding.status == 'open' else 'refresh', 14) }} {{ 'Mark resolved' if finding.status == 'open' else 'Reopen' }}</button>
+      </form>
+      {% if finding.status != 'dismissed' %}
+      <form method="post" action="/findings/{{ finding.id }}/status" class="inline-form">
+        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+        <input type="hidden" name="status" value="dismissed">
+        <button class="btn btn-quiet btn-sm" type="submit">{{ icon('x', 14) }} Dismiss</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="panel glass empty-state large">
+  <div class="empty-icon">{{ icon('circle-check', 30) }}</div>
+  <h3>{{ 'No findings match this filter' if severity or status else 'The baseline is quiet' }}</h3>
+  <p>Change the filter or run the baseline again after changes.</p>
+</div>
+{% endif %}
+{% endblock %}

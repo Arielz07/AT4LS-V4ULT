@@ -1,0 +1,32 @@
+{% extends "auth.html" %}
+{% from "partials/icon.html" import icon %}
+{% block card %}
+<div class="card-head">
+  <span class="kicker">Access boundary</span>
+  <h2>Vault closed to collaborators</h2>
+  <p>The owner presence lock is the master switch. This page is shown when that presence is absent or no reviewer task session is live.</p>
+</div>
+
+<div class="lock-visual">
+  <div class="lock-ring">{{ icon('lock', 28) }}</div>
+  <div>
+    <strong>{{ 'Owner present' if vault_open else 'No owner presence' }}</strong>
+    <p>{{ 'A live session is required for reviewer access.' if vault_open else 'The host can remain online. The browser vault is still locked.' }}</p>
+  </div>
+</div>
+
+{% if live_windows %}
+<div class="mini-list">
+  <div class="mini-list-label">Live windows seen by the host</div>
+  {% for window in live_windows %}
+  <div class="mini-list-row"><span>{{ window.project_name }}</span><span class="mono dim">{{ window.expires_at|time_until }}</span></div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="btn-row">
+  <a class="btn btn-ghost" href="/login">{{ icon('arrow-left', 15) }} Sign in</a>
+  {% if user and user.role == 'owner' %}<a class="btn btn-accent" href="/">Open briefing</a>{% endif %}
+</div>
+<p class="auth-legal">{{ icon('shield', 12) }} Owner presence is checked continuously. Closing the vault does not stop the local host process.</p>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "auth.html" %}
+{% from "partials/icon.html" import icon %}
+{% block card %}
+<div class="card-head">
+  <span class="kicker">First boot</span>
+  <h2>Initialize the vault</h2>
+  <p>Create the owner seat. This account can always open the vault and is the only role allowed to change security boundaries.</p>
+</div>
+
+<form method="post" action="/setup" class="form-stack" autocomplete="on">
+  <input type="hidden" name="csrf" value="{{ setup_csrf }}">
+  <label class="field">
+    <span>Owner name</span>
+    <input type="text" name="name" value="{{ name if name is defined else '' }}" placeholder="Your name" required maxlength="90" autofocus>
+  </label>
+  <label class="field">
+    <span>Email</span>
+    <input type="email" name="email" value="{{ email if email is defined else '' }}" placeholder="owner@example.com" required autocomplete="email">
+  </label>
+  <div class="field-row">
+    <label class="field">
+      <span>Password</span>
+      <input type="password" name="password" placeholder="At least 10 characters" required minlength="10" autocomplete="new-password">
+    </label>
+    <label class="field">
+      <span>Confirm</span>
+      <input type="password" name="confirm" placeholder="Repeat password" required minlength="10" autocomplete="new-password">
+    </label>
+  </div>
+  <label class="check">
+    <input type="checkbox" required>
+    <span>I understand this is the owner account. Owner presence locks collaborator access.</span>
+  </label>
+  <button class="btn btn-accent btn-wide" type="submit">{{ icon('lock', 16) }} Create owner vault</button>
+</form>
+
+<div class="card-note">
+  {{ icon('info', 15) }}
+  <p>The database is created under your local data directory. Add website folders afterward; indexing never writes to them.</p>
+</div>
+{% endblock %}

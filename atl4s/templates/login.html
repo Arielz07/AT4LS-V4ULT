@@ -1,0 +1,47 @@
+{% extends "auth.html" %}
+{% from "partials/icon.html" import icon %}
+{% block card %}
+<div class="card-head">
+  <div class="card-head-row">
+    <span class="kicker">Vault access</span>
+    <span class="state-chip {{ 'is-live' if vault_open else 'is-closed' }}"><span class="status-dot {{ 'is-live' if vault_open else 'is-closed' }}"></span>{{ 'Open' if vault_open else 'Closed' }}</span>
+  </div>
+  <h2>Sign in</h2>
+  <p>Owner presence is checked before collaborator sessions are accepted.</p>
+</div>
+
+<form method="post" action="/login" class="form-stack">
+  <input type="hidden" name="csrf" value="{{ login_csrf }}">
+  <label class="field">
+    <span>Email</span>
+    <input type="email" name="email" value="{{ email if email is defined else '' }}" placeholder="you@example.com" required autocomplete="email" autofocus>
+  </label>
+  <label class="field">
+    <span>Password</span>
+    <div class="input-with-action">
+      <input type="password" name="password" placeholder="Vault password" required autocomplete="current-password" data-password>
+      <button type="button" class="input-action" data-toggle-password aria-label="Show password">{{ icon('eye', 16) }}</button>
+    </div>
+  </label>
+  <label class="field">
+    <span>Authenticator code <em>if enabled</em></span>
+    <input class="mono" type="text" name="totp" inputmode="numeric" autocomplete="one-time-code" placeholder="123 456" pattern="[0-9 ]{6,7}" maxlength="7">
+  </label>
+  <button class="btn btn-accent btn-wide" type="submit">{{ icon('arrow-right', 16) }} Enter vault</button>
+</form>
+
+<div class="login-state">
+  <div class="login-state-icon {{ 'is-live' if vault_open else 'is-closed' }}">{{ icon('shield', 18) }}</div>
+  <div>
+    {% if vault_open %}
+    <strong>Owner presence detected</strong>
+    <p>Collaborator access is currently possible if a live session is open.</p>
+    {% else %}
+    <strong>Vault is closed to collaborators</strong>
+    <p>Ask the owner to sign in. The host process can stay online while the vault remains locked.</p>
+    {% endif %}
+  </div>
+</div>
+
+<p class="auth-legal">{{ icon('lock', 12) }} Invite-only. No public registration. Two seats maximum.</p>
+{% endblock %}

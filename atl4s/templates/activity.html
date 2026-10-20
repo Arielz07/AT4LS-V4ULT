@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "partials/icon.html" import icon %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <div class="eyebrow"><span class="status-dot is-live"></span> append-only local log</div>
+    <h1>Activity</h1>
+    <p class="page-lede">The in-app event stream is the source of truth. Notifications will layer on top; this log stays canonical.</p>
+  </div>
+  <div class="page-head-actions"><a class="btn btn-quiet" href="/exports/findings.csv">{{ icon('download', 15) }} Findings CSV</a></div>
+</section>
+
+<section class="panel glass">
+  <div class="panel-head"><div><span class="kicker">Stream</span><h2>Everything that happened</h2></div><span class="dim">{{ events|length }} events</span></div>
+  {% if events %}
+  <div class="activity-stream">
+    {% for event in events %}
+    <div class="activity-row">
+      <div class="activity-glyph kind-{{ event.kind }}">{{ icon('scan' if event.kind == 'audit' else 'projects' if event.kind == 'project' else 'layers' if event.kind == 'index' else 'shield' if event.kind == 'access' else 'agents' if event.kind in ('agent', 'provider') else 'activity', 16) }}</div>
+      <div class="activity-main">
+        <div class="activity-title"><strong>{{ event.title }}</strong><span class="kind-chip">{{ event.kind }}</span></div>
+        {% if event.detail %}<p>{{ event.detail }}</p>{% endif %}
+        <div class="activity-meta">
+          <span>{{ event.created_at|time_ago }}</span>
+          {% if event.user_name %}<span class="dot-sep">·</span><span>{{ event.user_name }}</span>{% endif %}
+          {% if event.project_name %}<span class="dot-sep">·</span><a href="/projects/{{ event.project_id }}">{{ event.project_name }}</a>{% endif %}
+        </div>
+      </div>
+      <span class="mono dim activity-time">{{ event.created_at|date }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state large"><div class="empty-icon">{{ icon('activity', 28) }}</div><h3>No events yet</h3><p>Register a project or run a baseline to start the stream.</p></div>
+  {% endif %}
+</section>
+{% endblock %}

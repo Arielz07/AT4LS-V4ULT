@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "partials/icon.html" import icon %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <div class="eyebrow"><span class="status-dot is-live"></span> evidence ledger</div>
+    <h1>Audits</h1>
+    <p class="page-lede">Deterministic baseline runs. Every finding points to a path, a check, and a human-readable next step.</p>
+  </div>
+  <div class="page-head-actions">
+    <a class="btn btn-quiet" href="/exports/findings.csv">{{ icon('download', 15) }} Export findings</a>
+  </div>
+</section>
+
+<section class="panel glass">
+  <div class="panel-head"><div><span class="kicker">Runs</span><h2>Audit history</h2></div><span class="dim">{{ audits|length }} displayed</span></div>
+  {% if audits %}
+  <div class="table-wrap">
+    <table class="data-table audit-table">
+      <thead><tr><th>Run</th><th>Project</th><th>Verdict</th><th>Score</th><th>Findings</th><th>Status</th><th>Started</th><th></th></tr></thead>
+      <tbody>
+      {% for audit in audits %}
+      <tr>
+        <td><span class="mono">#{{ audit.id }}</span></td>
+        <td><a class="table-link" href="/projects/{{ audit.project_id }}">{{ audit.project_name }}</a><span class="mono subpath">{{ audit.root_path }}</span></td>
+        <td><span class="verdict verdict-{{ audit.verdict or 'none' }}">{{ audit.verdict|verdict_label }}</span></td>
+        <td><span class="mono score-value">{{ audit.score if audit.score is not none else '—' }}</span><span class="dim">/100</span></td>
+        <td><span class="mono">{{ audit.finding_count }}</span></td>
+        <td><span class="state-chip {{ 'is-live' if audit.status == 'complete' else 'is-closed' }}">{{ audit.status }}</span></td>
+        <td class="dim">{{ audit.started_at|time_ago }}</td>
+        <td class="right"><a class="btn btn-quiet btn-sm" href="/audits/{{ audit.id }}">Open report</a></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state large"><div class="empty-icon">{{ icon('audits', 28) }}</div><h3>No audits yet</h3><p>Open a project and run the free baseline. No API key is required.</p><a class="btn btn-accent" href="/projects">{{ icon('projects', 15) }} Open projects</a></div>
+  {% endif %}
+</section>
+{% endblock %}

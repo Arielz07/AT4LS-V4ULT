@@ -1,0 +1,165 @@
+{% from "partials/icon.html" import icon %}
+<!doctype html>
+<html lang="en" data-theme="dark" data-scene="drift">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#070b09">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23070b09'/%3E%3Cpath d='M9 22 16 8l7 14' stroke='%23c9f36d' stroke-width='2.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <meta name="atl4s-owner" content="{{ '1' if user and user.role == 'owner' else '0' }}">
+  <meta name="atl4s-vault" content="{{ 'open' if vault_open else 'closed' }}">
+  <meta name="atl4s-grace" content="{{ vault_grace }}">
+  <title>{{ page_title }} · ATL4S::V4UlT</title>
+  <script>
+    (() => {
+      try {
+        const pref = localStorage.getItem('atl4s-theme') || 'auto';
+        const resolved = pref === 'auto'
+          ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+          : pref;
+        document.documentElement.dataset.theme = resolved;
+        document.documentElement.dataset.themePref = pref;
+        const scene = localStorage.getItem('atl4s-scene') || 'drift';
+        document.documentElement.dataset.scene = scene;
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body data-page="{{ active_nav }}">
+  {% include "partials/icons.html" %}
+  <div class="ambient" aria-hidden="true">
+    <div class="ambient-orb ambient-orb-a"></div>
+    <div class="ambient-orb ambient-orb-b"></div>
+    <div class="ambient-orb ambient-orb-c"></div>
+    <div class="ambient-grid"></div>
+    <div class="ambient-noise"></div>
+  </div>
+
+  <div class="app-shell">
+    <aside class="rail" id="rail">
+      <a class="brand" href="/" aria-label="ATL4S::V4UlT home">
+        <span class="brand-glyph">{{ icon('spark', 17) }}</span>
+        <span class="brand-text">ATL4S<span class="brand-colon">::</span>V4UlT</span>
+      </a>
+      <div class="rail-kicker">Private control room</div>
+
+      <nav class="nav" aria-label="Primary">
+        <a class="nav-link {{ 'is-active' if active_nav == 'briefing' else '' }}" href="/">
+          {{ icon('briefing', 17) }}<span>Briefing</span>
+        </a>
+        <a class="nav-link {{ 'is-active' if active_nav == 'projects' else '' }}" href="/projects">
+          {{ icon('projects', 17) }}<span>Projects</span>
+        </a>
+        <a class="nav-link {{ 'is-active' if active_nav == 'audits' else '' }}" href="/audits">
+          {{ icon('audits', 17) }}<span>Audits</span>
+          {% if user and user.role in ('owner', 'full_access') %}<span class="nav-hint">baseline</span>{% endif %}
+        </a>
+        <a class="nav-link {{ 'is-active' if active_nav == 'agents' else '' }}" href="/agents">
+          {{ icon('agents', 17) }}<span>Agents</span>
+        </a>
+        <a class="nav-link {{ 'is-active' if active_nav == 'activity' else '' }}" href="/activity">
+          {{ icon('activity', 17) }}<span>Activity</span>
+        </a>
+        {% if user and user.role == 'owner' %}
+        <a class="nav-link {{ 'is-active' if active_nav == 'settings' else '' }}" href="/settings">
+          {{ icon('settings', 17) }}<span>Settings</span>
+        </a>
+        {% endif %}
+      </nav>
+
+      <div class="rail-spacer"></div>
+
+      <div class="rail-status">
+        <div class="status-line">
+          <span class="status-dot {{ 'is-live' if vault_open else 'is-closed' }}"></span>
+          <span>{{ 'Vault open' if vault_open else 'Vault closed' }}</span>
+        </div>
+        <p>
+          {% if user and user.role == 'owner' %}
+            Presence lock is extended while this window is active.
+          {% elif user and user.role == 'reviewer' %}
+            Access is limited to live task sessions.
+          {% else %}
+            Owner presence is required for collaborator access.
+          {% endif %}
+        </p>
+      </div>
+
+      <div class="rail-user">
+        <div class="avatar" aria-hidden="true">{{ user.name|initials if user else 'V4' }}</div>
+        <div class="rail-user-meta">
+          <strong>{{ user.name if user else 'Guest' }}</strong>
+          <span>{{ user.role|replace('_', ' ')|title if user else 'Unauthenticated' }}</span>
+        </div>
+        {% if user %}
+        <form method="post" action="/logout" class="icon-form">
+          <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+          <button class="icon-btn subtle" type="submit" title="Sign out" aria-label="Sign out">{{ icon('log-out', 16) }}</button>
+        </form>
+        {% endif %}
+      </div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <button class="icon-btn rail-toggle" type="button" data-rail-toggle aria-label="Open navigation">{{ icon('menu', 19) }}</button>
+        <div class="crumb">
+          <span class="crumb-dim">Vault</span>
+          <span class="crumb-sep">/</span>
+          <span>{{ page_title }}</span>
+        </div>
+
+        <form class="top-search" action="/search" method="get" role="search">
+          {{ icon('search', 16) }}
+          <input type="search" name="q" value="{{ query if query is defined else '' }}" placeholder="Search the vault…" autocomplete="off" aria-label="Search project files" data-search-input>
+          <kbd>Ctrl K</kbd>
+        </form>
+
+        <div class="top-actions">
+          <span class="presence-pill {{ 'is-live' if vault_open else 'is-closed' }}">
+            <span class="status-dot {{ 'is-live' if vault_open else 'is-closed' }}"></span>
+            {{ 'Owner present' if vault_open else 'Locked' }}
+          </span>
+          <button class="icon-btn" type="button" data-theme-toggle title="Toggle theme" aria-label="Toggle theme">
+            <span class="theme-icon theme-icon-dark">{{ icon('sun', 17) }}</span>
+            <span class="theme-icon theme-icon-light">{{ icon('moon', 17) }}</span>
+          </button>
+          <a class="avatar avatar-link" href="{{ '/account' if user else '/login' }}" title="Account security">{{ user.name|initials if user else 'V4' }}</a>
+        </div>
+      </header>
+
+      <main class="page" id="main">
+        {% if notice %}
+        <div class="flash flash-success" data-flash role="status">
+          {{ icon('circle-check', 17) }}<span>{{ notice }}</span>
+          <button type="button" class="flash-close" data-close-flash aria-label="Dismiss">{{ icon('x', 14) }}</button>
+        </div>
+        {% endif %}
+        {% if error %}
+        <div class="flash flash-error" data-flash role="alert">
+          {{ icon('alert', 17) }}<span>{{ error }}</span>
+          <button type="button" class="flash-close" data-close-flash aria-label="Dismiss">{{ icon('x', 14) }}</button>
+        </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+      </main>
+
+      <footer class="page-foot">
+        <span>ATL4S::V4UlT <span class="dim">v{{ app_version }}</span></span>
+        <span class="dot-sep">·</span>
+        <span>Local-first vault</span>
+        <span class="dot-sep">·</span>
+        <span class="dim">No autonomous writes</span>
+        <span class="foot-right"><span class="status-dot {{ 'is-live' if vault_open else 'is-closed' }}"></span> {{ 'presence live' if vault_open else 'presence gated' }}</span>
+      </footer>
+    </div>
+  </div>
+
+  <div class="rail-scrim" data-rail-scrim></div>
+  <script src="/static/app.js" defer></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

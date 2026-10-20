@@ -1,0 +1,17 @@
+{% extends "auth.html" %}
+{% from "partials/icon.html" import icon %}
+{% block card %}
+<div class="card-head">
+  <span class="kicker">Signal interrupted</span>
+  <h2>{{ page_title }}</h2>
+  <p>{{ error_message }}</p>
+</div>
+<div class="empty-state compact">
+  <div class="empty-icon">{{ icon('alert', 24) }}</div>
+  <p>The vault is intact. Return to a known surface and try again.</p>
+  <div class="btn-row">
+    <a class="btn btn-ghost" href="/">{{ icon('briefing', 15) }} Briefing</a>
+    <a class="btn btn-accent" href="/projects">{{ icon('projects', 15) }} Projects</a>
+  </div>
+</div>
+{% endblock %}

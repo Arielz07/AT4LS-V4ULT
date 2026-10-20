@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% from "partials/icon.html" import icon %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <div class="eyebrow"><span class="status-dot is-live"></span> agent registry</div>
+    <h1>Agents &amp; providers</h1>
+    <p class="page-lede">Standard read-only subagents, custom registrations, and sealed provider credentials. The free baseline does not require any of this.</p>
+  </div>
+</section>
+
+<section class="model-banner glass">
+  <div class="model-banner-icon">{{ icon('cpu', 22) }}</div>
+  <div class="model-banner-copy">
+    <span class="kicker">Default model route</span>
+    <strong class="mono">{{ default_model }}</strong>
+    <p>OpenCode gateway · free tier · 200k context · tools enabled. Variants <span class="mono">#low</span>, <span class="mono">#high</span>, <span class="mono">#max</span> are reserved for bulk checks, standard audits, and judge passes.</p>
+  </div>
+  <span class="free-chip">$0 baseline</span>
+</section>
+
+<section class="panel glass">
+  <div class="panel-head">
+    <div><span class="kicker">Standard panel</span><h2>Subagents</h2></div>
+    <span class="dim">{{ agents|length }} registered</span>
+  </div>
+  <div class="agent-grid">
+    {% for agent in agents %}
+    <article class="agent-card {{ 'is-builtin' if agent.is_builtin else '' }}">
+      <div class="agent-card-head">
+        <div class="agent-glyph">{{ icon('agents', 18) }}</div>
+        <div>
+          <div class="agent-name-line"><h3>{{ agent.name }}</h3>{% if agent.is_builtin %}<span class="type-chip">standard</span>{% else %}<span class="type-chip">custom</span>{% endif %}</div>
+          <span class="mono agent-slug">{{ agent.slug }}</span>
+        </div>
+        <span class="state-chip {{ 'is-live' if agent.enabled else 'is-closed' }}">{{ 'ready' if agent.enabled else 'off' }}</span>
+      </div>
+      <p>{{ agent.description }}</p>
+      <div class="agent-meta">
+        <span class="mono">{{ agent.model }}</span>
+        <span>{{ agent.mode }}</span>
+        <span>{{ agent.scope }}</span>
+      </div>
+      {% if agent.owner_user_id and not agent.is_builtin %}<span class="dim small">personal registration</span>{% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
+<div class="two-col">
+  <section class="panel glass">
+    <div class="panel-head"><div><span class="kicker">Gateway</span><h2>Providers</h2></div><span class="dim">{{ provider_count }} configured</span></div>
+    <div class="provider-list">
+      {% for provider in providers %}
+      <div class="provider-row">
+        <div class="provider-glyph">{{ icon('globe', 17) }}</div>
+        <div class="provider-main">
+          <div class="provider-title"><strong>{{ provider.name }}</strong>{% if provider.is_builtin %}<span class="type-chip">built-in</span>{% endif %}</div>
+          <span class="mono small">{{ provider.base_url }}</span>
+        </div>
+        <div class="provider-side">
+          <span class="mono small">{{ provider.default_model }}</span>
+          <span class="dim small">{{ provider.scope }}{% if provider.owner_name %} · {{ provider.owner_name }}{% endif %}</span>
+        </div>
+        <span class="key-state {{ 'has-key' if provider.has_secret else 'no-key' }}">{{ icon('key', 13) }} {{ 'sealed' if provider.has_secret else 'none' }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="panel-copy muted-note">{{ icon('lock', 13) }} Provider keys are encrypted with a local Fernet key and never returned to the browser. Built-in OpenCode does not need a key for the free route.</p>
+  </section>
+
+  <section class="panel glass note-panel">
+    <div class="note-icon">{{ icon('shield', 19) }}</div>
+    <h3>Execution boundary</h3>
+    <p>The standard agents are registered and visible. Deterministic baseline audits are wired now. Model-assisted runs, the verifier, and automatic routing are the next integration layer.</p>
+    <p class="small dim">No agent writes, commits, pushes, deploys, or destructive commands are enabled in this build.</p>
+  </section>
+</div>
+
+{% if can_manage %}
+<div class="two-col forms">
+  <details class="panel glass form-panel" {% if not agents %}open{% endif %}>
+    <summary>{{ icon('plus', 16) }} Register a custom agent</summary>
+    <form method="post" action="/agents/new" class="form-stack compact-form">
+      <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+      <label class="field"><span>Name</span><input type="text" name="name" required placeholder="e.g. accessibility-auditor"></label>
+      <label class="field"><span>Description</span><textarea name="description" rows="2" placeholder="What this agent is responsible for."></textarea></label>
+      <label class="field"><span>Model</span><input class="mono" type="text" name="model" value="{{ default_model }}" required></label>
+      {% if is_owner %}
+      <label class="field"><span>Scope</span><select name="scope"><option value="personal">Personal</option><option value="workspace">Workspace-shared</option></select></label>
+      {% else %}
+      <input type="hidden" name="scope" value="personal">
+      <p class="small dim">Collaborator-created agents are personal by default. Workspace sharing requires owner approval.</p>
+      {% endif %}
+      <label class="field"><span>System prompt</span><textarea name="system_prompt" rows="4" placeholder="Read-only instructions. Findings must include evidence."></textarea></label>
+      <button class="btn btn-ghost" type="submit">{{ icon('agents', 15) }} Register agent</button>
+    </form>
+  </details>
+
+  <details class="panel glass form-panel">
+    <summary>{{ icon('plus', 16) }} Register a provider</summary>
+    <form method="post" action="/providers/new" class="form-stack compact-form">
+      <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+      <div class="field-row">
+        <label class="field"><span>Display name</span><input type="text" name="name" required placeholder="My gateway"></label>
+        <label class="field"><span>Provider ID</span><input class="mono" type="text" name="provider_id" placeholder="custom"></label>
+      </div>
+      <label class="field"><span>Base URL</span><input class="mono" type="url" name="base_url" required placeholder="https://api.example.com/v1"></label>
+      <label class="field"><span>Default model</span><input class="mono" type="text" name="default_model" required placeholder="model-id"></label>
+      <div class="field-row">
+        <label class="field"><span>API key <em>sealed locally</em></span><input type="password" name="api_key" autocomplete="off" placeholder="Optional for now"></label>
+        {% if is_owner %}
+        <label class="field"><span>Scope</span><select name="scope"><option value="personal">Personal</option><option value="workspace">Workspace</option></select></label>
+        {% else %}
+        <input type="hidden" name="scope" value="personal">
+        <label class="field"><span>Scope</span><input type="text" value="Personal (collaborator)" disabled></label>
+        {% endif %}
+      </div>
+      <button class="btn btn-ghost" type="submit">{{ icon('key', 15) }} Seal credentials</button>
+    </form>
+  </details>
+</div>
+{% endif %}
+{% endblock %}

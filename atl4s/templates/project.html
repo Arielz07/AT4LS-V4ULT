@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% from "partials/icon.html" import icon %}
+
+{% block content %}
+<section class="project-hero">
+  <div class="project-hero-main">
+    <a class="back-link" href="/projects">{{ icon('arrow-left', 14) }} Projects</a>
+    <div class="project-title-line">
+      <h1>{{ project.name }}</h1>
+      <span class="type-chip">{{ project.project_type }}</span>
+      <span class="state-chip {{ 'is-live' if project.status == 'active' else 'is-closed' }}"><span class="status-dot {{ 'is-live' if project.status == 'active' else 'is-closed' }}"></span>{{ project.status }}</span>
+      {% if windows %}<span class="live-chip"><span class="status-dot is-live"></span> live review</span>{% endif %}
+    </div>
+    <span class="project-path mono" title="{{ project.root_path }}">{{ project.root_path }}</span>
+    <p class="page-lede">{{ project.description or 'No description. The filesystem is the source of truth.' }}</p>
+    <div class="hero-actions compact">
+      {% if can_manage %}
+      <form method="post" action="/projects/{{ project.id }}/index" class="inline-form">
+        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+        <button class="btn btn-ghost" type="submit">{{ icon('refresh', 15) }} Re-index</button>
+      </form>
+      <form method="post" action="/projects/{{ project.id }}/audit" class="inline-form">
+        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+        <button class="btn btn-accent" type="submit">{{ icon('play', 15) }} Run baseline audit</button>
+      </form>
+      {% endif %}
+      <a class="btn btn-quiet" href="/exports/files.csv">{{ icon('download', 15) }} Export index</a>
+    </div>
+  </div>
+  <div class="project-score glass">
+    <div class="score-ring big {{ 'score-good' if (project.health_score or 0) >= 80 else 'score-watch' if (project.health_score or 0) >= 55 else 'score-low' }}" style="--score: {{ project.health_score or 0 }}%">
+      <span>{{ project.health_score if project.health_score is not none else '—' }}</span>
+      <small>/100</small>
+    </div>
+    <div>
+      <span class="kicker">Latest baseline</span>
+      <strong>{{ latest_audit.verdict|verdict_label if latest_audit else 'Not audited' }}</strong>
+      <p>{{ latest_audit.started_at|time_ago if latest_audit else 'Run the free baseline to establish a signal.' }}</p>
+    </div>
+  </div>
+</section>
+
+{% if windows %}
+<div class="live-banner glass">
+  <div class="live-banner-icon">{{ icon('eye', 20) }}</div>
+  <div class="live-banner-copy">
+    <strong>Reviewer access is live for this project</strong>
+    <p>Task-gated windows expire automatically. Owner presence still overrides every request.</p>
+  </div>
+  <div class="live-windows">
+    {% for window in windows %}
+    <div class="live-window">
+      <span>{{ window.title }}</span>
+      <b class="mono">{{ window.expires_at|time_until }}</b>
+      {% if is_owner %}
+      <form method="post" action="/projects/{{ project.id }}/session/end">
+        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+        <input type="hidden" name="window_id" value="{{ window.id }}">
+        <button class="icon-btn subtle" type="submit" title="End live session">{{ icon('x', 14) }}</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<section class="kpi-grid four">
+  <div class="kpi glass"><div class="kpi-icon">{{ icon('layers', 17) }}</div><div><span class="kpi-label">Files</span><strong>{{ project.file_count|human_count }}</strong></div><span class="kpi-foot">{{ project.total_bytes|human_bytes }}</span></div>
+  <div class="kpi glass"><div class="kpi-icon">{{ icon('folder', 17) }}</div><div><span class="kpi-label">Kinds</span><strong>{{ kinds|length }}</strong></div><span class="kpi-foot">tracked file types</span></div>
+  <div class="kpi glass"><div class="kpi-icon warn">{{ icon('link', 17) }}</div><div><span class="kpi-label">Broken links</span><strong>{{ link_stats.get('broken', 0) }}</strong></div><span class="kpi-foot">{{ link_stats.get('ok', 0) }} local refs verified</span></div>
+  <div class="kpi glass"><div class="kpi-icon ok">{{ icon('clock', 17) }}</div><div><span class="kpi-label">Last indexed</span><strong class="kpi-text">{{ project.last_indexed_at|time_ago if project.last_indexed_at else 'never' }}</strong></div><span class="kpi-foot">{{ project.updated_at|date }}</span></div>
+</section>
+
+<div class="project-layout">
+  <div class="stack main-stack">
+    <section class="panel glass" id="inventory">
+      <div class="panel-head">
+        <div><span class="kicker">Index</span><h2>File inventory</h2></div>
+        <span class="dim">{{ files|length }} shown{% if files|length == 260 %} · limit reached{% endif %}</span>
+      </div>
+      <form class="toolbar-inline" method="get" action="/projects/{{ project.id }}">
+        <div class="inline-search">
+          {{ icon('search', 15) }}
+          <input type="search" name="q" value="{{ query }}" placeholder="Filter files…" aria-label="Filter files">
+        </div>
+        <select name="kind" class="select-compact" onchange="this.form.submit()" aria-label="Filter by kind">
+          <option value="">All kinds</option>
+          {% for row in kinds %}
+          <option value="{{ row.kind }}" {{ 'selected' if kind == row.kind else '' }}>{{ row.kind|title }} ({{ row.n }})</option>
+          {% endfor %}
+        </select>
+        <button class="btn btn-quiet btn-sm" type="submit">{{ icon('filter', 14) }} Apply</button>
+        {% if query or kind %}<a class="btn btn-quiet btn-sm" href="/projects/{{ project.id }}">Clear</a>{% endif %}
+      </form>
+
+      {% if files %}
+      <div class="table-wrap">
+        <table class="data-table file-table">
+          <thead><tr><th>Path</th><th>Kind</th><th>Size</th><th>Words</th><th></th></tr></thead>
+          <tbody>
+          {% for file in files %}
+          <tr>
+            <td>
+              <a class="file-link" href="/files/{{ file.id }}">
+                <span class="file-icon">{{ icon('file-text' if file.kind == 'page' else 'code' if file.kind == 'code' else 'image' if file.kind == 'image' else 'file', 15) }}</span>
+                <span class="mono">{{ file.path }}</span>
+              </a>
+              {% if file.title and file.title != file.name %}<span class="file-title">{{ file.title }}</span>{% endif %}
+            </td>
+            <td><span class="kind-chip">{{ file.kind }}</span></td>
+            <td class="mono dim">{{ file.size|human_bytes }}</td>
+            <td class="mono dim">{{ file.word_count }}</td>
+            <td class="right"><a class="icon-btn subtle" href="/files/{{ file.id }}" aria-label="Open file">{{ icon('arrow-right', 14) }}</a></td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state slim"><p>No files match this filter.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="panel glass" id="audits">
+      <div class="panel-head">
+        <div><span class="kicker">History</span><h2>Audit ledger</h2></div>
+        {% if can_manage %}
+        <form method="post" action="/projects/{{ project.id }}/audit">
+          <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+          <button class="btn btn-quiet btn-sm" type="submit">{{ icon('play', 14) }} New baseline</button>
+        </form>
+        {% endif %}
+      </div>
+      {% if audits %}
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Run</th><th>Verdict</th><th>Score</th><th>Findings</th><th>Date</th><th></th></tr></thead>
+          <tbody>
+          {% for audit in audits %}
+          <tr>
+            <td><span class="mono">#{{ audit.id }}</span> <span class="kind-chip">{{ audit.kind }}</span></td>
+            <td><span class="verdict verdict-{{ audit.verdict or 'none' }}">{{ audit.verdict|verdict_label }}</span></td>
+            <td><span class="mono">{{ audit.score if audit.score is not none else '—' }}</span></td>
+            <td class="mono dim">{{ audit.status }}</td>
+            <td class="dim">{{ audit.started_at|time_ago }}</td>
+            <td class="right"><a class="btn btn-quiet btn-sm" href="/audits/{{ audit.id }}">Open</a></td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state slim"><p>No audit has run. The free baseline checks structure, content, docs, and local links.</p></div>
+      {% endif %}
+    </section>
+  </div>
+
+  <aside class="stack side-stack">
+    <section class="panel glass" id="findings">
+      <div class="panel-head"><div><span class="kicker">Signal</span><h2>Priority findings</h2></div>{% if latest_audit %}<a class="icon-btn subtle" href="/audits/{{ latest_audit.id }}" aria-label="Open full report">{{ icon('arrow-right', 15) }}</a>{% endif %}</div>
+      {% if findings %}
+      <div class="finding-list compact">
+        {% for finding in findings %}
+        <a class="finding-row" href="/audits/{{ finding.audit_id }}#finding-{{ finding.id }}">
+          <span class="severity-dot severity-{{ finding.severity }}"></span>
+          <div><strong>{{ finding.title }}</strong><span class="dim">{{ finding.category }} · {{ finding.evidence_path or 'project-wide' }}</span></div>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state slim"><p>No findings recorded yet. Run the baseline to populate this panel.</p></div>
+      {% endif %}
+      {% if latest_audit %}
+      <div class="mini-stats">
+        {% for severity in ['critical', 'high', 'medium', 'low', 'info'] %}
+        <span><b>{{ severity_counts.get(severity, 0) }}</b><em>{{ severity }}</em></span>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </section>
+
+    {% if is_owner %}
+    <section class="panel glass">
+      <div class="panel-head"><div><span class="kicker">Access</span><h2>Live review</h2></div><span class="state-chip {{ 'is-live' if windows else 'is-closed' }}"><span class="status-dot {{ 'is-live' if windows else 'is-closed' }}"></span>{{ 'Live' if windows else 'Idle' }}</span></div>
+      <p class="panel-copy">Open a task-gated window for the reviewer seat. This does not grant editor permissions, and owner presence still closes the session.</p>
+      <form method="post" action="/projects/{{ project.id }}/session" class="form-stack compact-form">
+        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+        <label class="field"><span>Window title</span><input type="text" name="title" placeholder="Live review · {{ project.name }}"></label>
+        <label class="field"><span>Duration</span>
+          <select name="hours">
+            <option value="1">1 hour</option>
+            <option value="2" selected>2 hours</option>
+            <option value="4">4 hours</option>
+            <option value="8">8 hours</option>
+          </select>
+        </label>
+        <button class="btn btn-ghost btn-wide" type="submit">{{ icon('eye', 15) }} Open live session</button>
+      </form>
+      {% if windows %}
+      <form method="post" action="/projects/{{ project.id }}/session/end" class="mini-end">
+        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+        <button class="btn btn-quiet btn-sm" type="submit">{{ icon('x', 14) }} End all live sessions</button>
+      </form>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    <section class="panel glass note-panel">
+      <div class="note-icon">{{ icon('shield', 19) }}</div>
+      <h3>Boundary</h3>
+      <p>Indexing is read-only. Audits create findings in the vault, not changes on disk. This build does not write, commit, push, or deploy.</p>
+    </section>
+
+    {% if is_owner %}
+    <details class="panel glass danger-panel">
+      <summary>{{ icon('trash', 15) }} Remove project</summary>
+      <p>Removes the vault record and index. Source files stay untouched.</p>
+      <form method="post" action="/projects/{{ project.id }}/delete" class="form-stack" data-confirm-form>
+        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+        <label class="field"><span>Type <b>{{ project.name }}</b> to confirm</span><input type="text" name="confirm" autocomplete="off" required></label>
+        <button class="btn btn-danger btn-wide" type="submit">{{ icon('trash', 15) }} Remove from vault</button>
+      </form>
+    </details>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

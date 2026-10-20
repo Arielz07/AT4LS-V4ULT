@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "partials/icon.html" import icon %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <div class="eyebrow"><span class="status-dot is-live"></span> local full-text index</div>
+    <h1>Search</h1>
+    <p class="page-lede">Results come from indexed file paths, titles, summaries, and extracted text. No remote search.</p>
+  </div>
+</section>
+
+<section class="search-stage glass">
+  <form class="search-stage-form" action="/search" method="get">
+    {{ icon('search', 18) }}
+    <input type="search" name="q" value="{{ query }}" placeholder="Search paths, page titles, headings, body text…" autofocus aria-label="Search files">
+    <button class="btn btn-accent" type="submit">Search</button>
+  </form>
+  <div class="search-hint">
+    {% if query %}<span>{{ results|length }} result{{ '' if results|length == 1 else 's' }} for <b class="mono">{{ query }}</b></span>{% else %}<span>Try a filename, a page title, a phrase, or a broken link target.</span>{% endif %}
+    <span class="dot-sep">·</span><span class="dim">SQLite FTS5</span>
+  </div>
+</section>
+
+{% if query %}
+  {% if results %}
+  <div class="search-results">
+    {% for result in results %}
+    <a class="search-result glass" href="/files/{{ result.id }}">
+      <div class="search-result-icon">{{ icon('file-text' if result.kind == 'page' else 'code' if result.kind == 'code' else 'file', 18) }}</div>
+      <div class="search-result-main">
+        <div class="search-result-title"><strong>{{ result.title or result.name }}</strong><span class="path-chip mono">{{ result.path }}</span></div>
+        <p>{{ result.summary or 'No extractable summary.' }}</p>
+        <div class="search-result-meta"><span>{{ result.project_name }}</span><span class="dot-sep">·</span><span>{{ result.kind }}</span><span class="dot-sep">·</span><span>{{ result.size|human_bytes }}</span><span class="dot-sep">·</span><span>{{ result.word_count }} words</span></div>
+      </div>
+      {{ icon('arrow-right', 15, 'row-arrow') }}
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="panel glass empty-state large"><div class="empty-icon">{{ icon('search', 28) }}</div><h3>No matching files</h3><p>Check the spelling, use fewer words, or re-index the project if files changed on disk.</p><a class="btn btn-ghost" href="/projects">{{ icon('projects', 15) }} Open projects</a></div>
+  {% endif %}
+{% else %}
+<div class="panel glass empty-state large"><div class="empty-icon">{{ icon('search', 28) }}</div><h3>Search the vault</h3><p>Every indexed word is local. This is the fastest way to confirm what is actually in a project before asking an agent anything.</p></div>
+{% endif %}
+{% endblock %}

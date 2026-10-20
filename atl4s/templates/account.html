@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% from "partials/icon.html" import icon %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <div class="eyebrow"><span class="status-dot is-live"></span> account security</div>
+    <h1>Your access</h1>
+    <p class="page-lede">Password sign-in for {{ user.email }}. Add a time-based authenticator code as a second factor for this seat.</p>
+  </div>
+  <div class="page-head-actions">
+    <span class="state-chip {{ 'is-live' if totp_enabled else 'is-closed' }}">
+      <span class="status-dot {{ 'is-live' if totp_enabled else 'is-closed' }}"></span>
+      {{ 'TOTP enabled' if totp_enabled else 'TOTP not enabled' }}
+    </span>
+  </div>
+</section>
+
+<div class="two-col">
+  <section class="panel glass">
+    <div class="panel-head">
+      <div><span class="kicker">Second factor</span><h2>Authenticator app</h2></div>
+      <span class="dim">{{ user.role|replace('_', ' ')|title }}</span>
+    </div>
+
+    {% if totp_enabled %}
+    <p class="page-lede">This seat requires a current 6-digit code after the password at every sign-in. The code is checked locally; no authenticator data leaves the host.</p>
+    <div class="settings-note">{{ icon('shield', 15) }} Keep a secure backup of the authenticator entry. A lost device means this seat cannot sign in until the authenticator is disabled from an existing session.</div>
+    <form method="post" action="/account/totp/disable" class="form-stack compact-form">
+      <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+      <label class="field"><span>Current password</span><input type="password" name="password" autocomplete="current-password" required></label>
+      <label class="field"><span>Current authenticator code</span><input class="mono" type="text" name="totp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" placeholder="123 456" required></label>
+      <button class="btn btn-quiet" type="submit">{{ icon('lock', 15) }} Disable TOTP</button>
+    </form>
+    {% elif pending_secret %}
+    <p class="page-lede">The secret below is pending confirmation. Add it to an authenticator app as a time-based account, then enter the current code. The pending secret expires after 15 minutes.</p>
+    <div class="field">
+      <span>Manual setup secret</span>
+      <p class="mono invite-link" data-copy="{{ pending_secret }}">{{ pending_secret }}</p>
+      <button class="btn btn-quiet btn-sm" type="button" data-copy="{{ pending_secret }}">{{ icon('copy', 14) }} Copy secret</button>
+    </div>
+    <details class="setup-uri">
+      <summary>Provisioning URI</summary>
+      <pre class="code-preview">{{ totp_uri }}</pre>
+    </details>
+    <form method="post" action="/account/totp/enable" class="form-stack compact-form">
+      <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+      <label class="field"><span>Current authenticator code</span><input class="mono" type="text" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" placeholder="123 456" required autofocus></label>
+      <button class="btn btn-accent" type="submit">{{ icon('shield', 15) }} Confirm and enable</button>
+    </form>
+    <form method="post" action="/account/totp/start" class="form-stack compact-form restart-form">
+      <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+      <label class="field"><span>Start over</span><input type="password" name="password" autocomplete="current-password" placeholder="Current password" required></label>
+      <button class="btn btn-quiet btn-sm" type="submit">Replace pending secret</button>
+    </form>
+    {% else %}
+    <p class="page-lede">TOTP adds a second step to sign-in: your password, then a rotating 6-digit code from an authenticator app. It does not replace the owner presence lock or review windows.</p>
+    <form method="post" action="/account/totp/start" class="form-stack compact-form">
+      <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+      <label class="field"><span>Current password</span><input type="password" name="password" autocomplete="current-password" required></label>
+      <button class="btn btn-accent" type="submit">{{ icon('shield', 15) }} Begin enrollment</button>
+    </form>
+    {% endif %}
+  </section>
+
+  <aside class="stack">
+    <section class="panel glass note-panel">
+      <div class="note-icon">{{ icon('lock', 19) }}</div>
+      <h3>What this changes</h3>
+      <ul class="check-list">
+        <li>{{ icon('check', 13) }} The password remains required.</li>
+        <li>{{ icon('check', 13) }} A current TOTP code is checked locally.</li>
+        <li>{{ icon('check', 13) }} The owner presence lock still gates collaborators.</li>
+        <li>{{ icon('check', 13) }} Reviewer windows still gate task access.</li>
+      </ul>
+    </section>
+    <section class="panel glass note-panel muted">
+      <div class="note-icon">{{ icon('key', 19) }}</div>
+      <h3>Local storage</h3>
+      <p>The confirmed TOTP secret is encrypted with the local vault key. Pending setup secrets are encrypted too and expire after 15 minutes. The app never sends the secret to a third-party service.</p>
+    </section>
+  </aside>
+</div>
+{% endblock %}

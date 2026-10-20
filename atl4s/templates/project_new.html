@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% from "partials/icon.html" import icon %}
+
+{% block content %}
+<section class="page-head">
+  <div>
+    <a class="back-link" href="/projects">{{ icon('arrow-left', 14) }} Projects</a>
+    <div class="eyebrow"><span class="status-dot is-live"></span> read-only registration</div>
+    <h1>Add a project</h1>
+    <p class="page-lede">Point the vault at a local folder. Indexing reads files and hashes content; it never edits, deletes, commits, or deploys.</p>
+  </div>
+</section>
+
+<div class="form-layout">
+  <section class="panel glass form-panel">
+    <form method="post" action="/projects/new" class="form-stack">
+      <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+      <label class="field">
+        <span>Folder path</span>
+        <input class="mono" type="text" name="root_path" value="{{ root_path if root_path is defined else '' }}" placeholder="/home/you/sites/example" required autofocus data-path-input>
+        <small>Use an absolute local path. Filesystem roots, the entire home folder, and the vault data directory are rejected.</small>
+      </label>
+      <div class="field-row">
+        <label class="field">
+          <span>Display name</span>
+          <input type="text" name="name" value="{{ name if name is defined else '' }}" placeholder="Optional; defaults to folder name" maxlength="120">
+        </label>
+        <label class="field">
+          <span>Type</span>
+          <select name="project_type">
+            {% for type in allowed_types %}
+            <option value="{{ type }}" {{ 'selected' if project_type is defined and project_type == type else '' }}>{{ type|title }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <label class="field">
+        <span>Description <em>optional</em></span>
+        <textarea name="description" rows="3" placeholder="What lives here, and what should be reviewed first?">{{ description if description is defined else '' }}</textarea>
+      </label>
+      <div class="form-actions">
+        <a class="btn btn-ghost" href="/projects">Cancel</a>
+        <button class="btn btn-accent" type="submit">{{ icon('scan', 16) }} Register &amp; index</button>
+      </div>
+    </form>
+  </section>
+
+  <aside class="stack">
+    <section class="panel glass note-panel">
+      <div class="note-icon">{{ icon('shield', 19) }}</div>
+      <h3>What the first pass does</h3>
+      <ul class="check-list">
+        <li>{{ icon('check', 13) }} Walks the folder and skips dependency/cache directories.</li>
+        <li>{{ icon('check', 13) }} Extracts titles, summaries, word counts, and local links.</li>
+        <li>{{ icon('check', 13) }} Builds a local search index.</li>
+        <li>{{ icon('x', 13) }} Does not edit, move, or delete source files.</li>
+      </ul>
+    </section>
+    <section class="panel glass note-panel muted">
+      <div class="note-icon">{{ icon('info', 19) }}</div>
+      <h3>Ignored by default</h3>
+      <p class="mono small">.git · node_modules · .venv · dist · build · target · .env · key files</p>
+      <p>Large files are indexed as metadata. Text extraction stops after 768 KB.</p>
+    </section>
+  </aside>
+</div>
+{% endblock %}

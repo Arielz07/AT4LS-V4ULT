@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% from "partials/icon.html" import icon %}
+
+{% block content %}
+{% set open_total = projects|map(attribute='open_findings')|sum %}
+<section class="hero">
+  <div class="hero-copy">
+    <div class="eyebrow"><span class="status-dot {{ 'is-live' if vault_open else 'is-closed' }}"></span> {{ 'Presence lock active' if vault_open else 'Vault closed' }} · {{ user.role|replace('_', ' ')|title }}</div>
+    <h1>{{ 'Good to see you' if user.role != 'owner' else 'Control room' }}, <em>{{ user.name.split(' ')[0] }}</em>.</h1>
+    <p class="hero-lede">
+      {% if user.role == 'owner' %}
+      The vault is awake. Indexed folders are read-only, audits are evidence-first, and nothing writes without a human decision.
+      {% elif user.role == 'reviewer' %}
+      You are inside a live review window. Access ends when the owner closes the vault or the session expires.
+      {% else %}
+      Full-access collaborator. The owner presence lock still governs every session.
+      {% endif %}
+    </p>
+    <div class="hero-actions">
+      {% if is_owner %}
+      <a class="btn btn-accent" href="/projects/new">{{ icon('plus', 16) }} Add project</a>
+      {% endif %}
+      <a class="btn btn-ghost" href="/projects">{{ icon('projects', 16) }} Open projects</a>
+      <a class="btn btn-quiet" href="/exports/files.csv">{{ icon('download', 15) }} Export index</a>
+    </div>
+  </div>
+  <div class="hero-orbit" aria-hidden="true">
+    <div class="orbit-ring orbit-ring-a"></div>
+    <div class="orbit-ring orbit-ring-b"></div>
+    <div class="orbit-core">{{ icon('spark', 22) }}</div>
+    <span class="orbit-label orbit-label-a">read</span>
+    <span class="orbit-label orbit-label-b">audit</span>
+    <span class="orbit-label orbit-label-c">verify</span>
+  </div>
+</section>
+
+<section class="kpi-grid">
+  <div class="kpi glass">
+    <div class="kpi-icon">{{ icon('projects', 18) }}</div>
+    <div><span class="kpi-label">Projects</span><strong>{{ totals.projects|human_count }}</strong></div>
+    <span class="kpi-foot">registered roots</span>
+  </div>
+  <div class="kpi glass">
+    <div class="kpi-icon">{{ icon('layers', 18) }}</div>
+    <div><span class="kpi-label">Indexed files</span><strong>{{ totals.files|human_count }}</strong></div>
+    <span class="kpi-foot">{{ totals.bytes|human_bytes }}</span>
+  </div>
+  <div class="kpi glass">
+    <div class="kpi-icon warn">{{ icon('alert', 18) }}</div>
+    <div><span class="kpi-label">Open findings</span><strong>{{ open_total|human_count }}</strong></div>
+    <span class="kpi-foot">latest audits</span>
+  </div>
+  <div class="kpi glass">
+    <div class="kpi-icon ok">{{ icon('shield', 18) }}</div>
+    <div><span class="kpi-label">Vault health</span><strong>{{ (totals.health or 0)|round|int }}</strong><span class="kpi-unit">/100</span></div>
+    <span class="kpi-foot">{{ 'awaiting first audit' if not projects else 'average across projects' }}</span>
+  </div>
+</section>
+
+<div class="dashboard-grid">
+  <section class="panel glass span-2">
+    <div class="panel-head">
+      <div>
+        <span class="kicker">Portfolio</span>
+        <h2>Project signal</h2>
+      </div>
+      <a class="btn btn-quiet btn-sm" href="/projects">All projects {{ icon('arrow-right', 14) }}</a>
+    </div>
+
+    {% if projects %}
+    <div class="project-list">
+      {% for project in projects %}
+      <a class="project-row" href="/projects/{{ project.id }}">
+        <div class="score-ring {{ 'score-good' if (project.health_score or 0) >= 80 else 'score-watch' if (project.health_score or 0) >= 55 else 'score-low' }}" style="--score: {{ project.health_score or 0 }}%">
+          <span>{{ project.health_score if project.health_score is not none else '—' }}</span>
+        </div>
+        <div class="project-row-main">
+          <div class="project-row-title">
+            <strong>{{ project.name }}</strong>
+            <span class="type-chip">{{ project.project_type }}</span>
+            {% if project.live_windows %}<span class="live-chip"><span class="status-dot is-live"></span> live session</span>{% endif %}
+          </div>
+          <span class="project-path mono">{{ project.root_path }}</span>
+        </div>
+        <div class="project-row-stats">
+          <span><b>{{ project.file_count|human_count }}</b> files</span>
+          <span><b>{{ project.total_bytes|human_bytes }}</b></span>
+          <span class="{{ 'text-warn' if project.open_findings else 'text-ok' }}"><b>{{ project.open_findings }}</b> open</span>
+        </div>
+        <div class="project-row-side">
+          <span class="verdict verdict-{{ project.latest_verdict or 'none' }}">{{ project.latest_verdict|verdict_label }}</span>
+          <span class="dim">{{ project.latest_audit_at|time_ago if project.latest_audit_at else 'not audited' }}</span>
+        </div>
+        {{ icon('arrow-right', 15, 'row-arrow') }}
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">{{ icon('projects', 26) }}</div>
+      <h3>No projects in the vault</h3>
+      <p>Register a website or project folder. The index is read-only and the first audit is free and deterministic.</p>
+      {% if is_owner %}<a class="btn btn-accent" href="/projects/new">{{ icon('plus', 15) }} Add the first project</a>{% endif %}
+    </div>
+    {% endif %}
+  </section>
+
+  <aside class="panel glass">
+    <div class="panel-head">
+      <div><span class="kicker">Presence</span><h2>Access state</h2></div>
+      <span class="state-chip {{ 'is-live' if vault_open else 'is-closed' }}"><span class="status-dot {{ 'is-live' if vault_open else 'is-closed' }}"></span>{{ 'Open' if vault_open else 'Closed' }}</span>
+    </div>
+    <div class="presence-graphic">
+      <div class="presence-core {{ 'is-live' if vault_open else 'is-closed' }}">{{ icon('lock' if not vault_open else 'shield', 24) }}</div>
+      <div class="presence-wave"></div>
+    </div>
+    <div class="presence-copy">
+      {% if user.role == 'owner' %}
+      <strong>Owner heartbeat is the master switch.</strong>
+      <p>Closing this vault locks collaborator seats. The Uvicorn host may keep running in the background.</p>
+      {% else %}
+      <strong>You are inside an owner-opened window.</strong>
+      <p>When presence disappears, protected routes close immediately.</p>
+      {% endif %}
+    </div>
+    {% if user.role == 'owner' %}
+    <div class="presence-meta">
+      <span>{{ icon('users', 14) }} {{ users_count }} seat{{ '' if users_count == 1 else 's' }} occupied</span>
+      <span>{{ icon('clock', 14) }} {{ vault_grace }}s grace</span>
+    </div>
+    {% endif %}
+    {% if windows %}
+    <div class="mini-list">
+      <div class="mini-list-label">Live task sessions</div>
+      {% for window in windows[:4] %}
+      <a class="mini-list-row" href="/projects/{{ window.project_id }}">
+        <span>{{ window.project_name }}</span>
+        <span class="mono dim">{{ window.expires_at|time_until }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </aside>
+</div>
+
+<div class="dashboard-grid bottom">
+  <section class="panel glass span-2">
+    <div class="panel-head">
+      <div><span class="kicker">History</span><h2>Recent audits</h2></div>
+      <a class="btn btn-quiet btn-sm" href="/audits">Audit log {{ icon('arrow-right', 14) }}</a>
+    </div>
+    {% if latest_audits %}
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Project</th><th>Verdict</th><th>Score</th><th>Started</th><th></th></tr></thead>
+        <tbody>
+        {% for audit in latest_audits %}
+        <tr>
+          <td><a class="table-link" href="/projects/{{ audit.project_id }}">{{ audit.project_name }}</a><span class="mono subpath">#{{ audit.id }}</span></td>
+          <td><span class="verdict verdict-{{ audit.verdict or 'none' }}">{{ audit.verdict|verdict_label }}</span></td>
+          <td><span class="mono">{{ audit.score if audit.score is not none else '—' }}</span><span class="dim">/100</span></td>
+          <td class="dim">{{ audit.started_at|time_ago }}</td>
+          <td class="right"><a class="icon-btn subtle" href="/audits/{{ audit.id }}" aria-label="Open audit">{{ icon('arrow-right', 15) }}</a></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state slim"><p>No audits yet. Open a project and run the free baseline.</p></div>
+    {% endif %}
+  </section>
+
+  <aside class="panel glass">
+    <div class="panel-head">
+      <div><span class="kicker">Event stream</span><h2>Activity</h2></div>
+      <a class="icon-btn subtle" href="/activity" aria-label="All activity">{{ icon('arrow-right', 15) }}</a>
+    </div>
+    {% if events %}
+    <div class="timeline">
+      {% for event in events %}
+      <div class="timeline-item">
+        <span class="timeline-dot kind-{{ event.kind }}"></span>
+        <div>
+          <strong>{{ event.title }}</strong>
+          {% if event.detail %}<p>{{ event.detail }}</p>{% endif %}
+          <span class="dim">{{ event.created_at|time_ago }}{% if event.user_name %} · {{ event.user_name }}{% endif %}</span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state slim"><p>The event stream is quiet.</p></div>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

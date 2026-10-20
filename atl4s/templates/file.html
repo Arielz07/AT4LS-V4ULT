@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% from "partials/icon.html" import icon %}
+{% block content %}
+<section class="page-head file-head">
+  <div>
+    <a class="back-link" href="/projects/{{ project.id }}">{{ icon('arrow-left', 14) }} {{ project.name }}</a>
+    <div class="eyebrow"><span class="status-dot is-live"></span> {{ file.kind }} · {{ file.extension or 'no extension' }}</div>
+    <h1 class="file-heading">{{ file.title or file.name }}</h1>
+    <span class="project-path mono">{{ project.root_path }}/{{ file.path }}</span>
+  </div>
+  <div class="page-head-actions"><a class="btn btn-quiet" href="/projects/{{ project.id }}?q={{ file.path|urlencode }}">{{ icon('search', 15) }} Find in project</a></div>
+</section>
+
+<div class="file-layout">
+  <div class="stack">
+    <section class="panel glass">
+      <div class="panel-head"><div><span class="kicker">Extracted text</span><h2>Preview</h2></div><span class="dim">read-only</span></div>
+      {% if file.content_text %}
+      <pre class="code-preview">{{ file.content_text[:14000] }}{% if file.content_text|length > 14000 %}
+
+… preview truncated …
+{% endif %}</pre>
+      {% else %}
+      <div class="empty-state slim"><p>No text was extracted. This is a binary or asset file; metadata is still indexed.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><div><span class="kicker">Local references</span><h2>Outgoing links</h2></div><span class="dim">{{ links|length }}</span></div>
+      {% if links %}
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Reference</th><th>Target</th><th>Status</th></tr></thead>
+          <tbody>
+          {% for link in links %}
+          <tr>
+            <td class="mono">{{ link.href }}</td>
+            <td class="mono dim">{{ link.target_path or ('external' if link.is_external else '—') }}</td>
+            <td><span class="status-chip status-{{ link.status }}">{{ link.status }}</span></td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="empty-state slim"><p>No local or external references extracted from this file.</p></div>
+      {% endif %}
+    </section>
+  </div>
+
+  <aside class="stack side-stack">
+    <section class="panel glass">
+      <div class="panel-head"><div><span class="kicker">Metadata</span><h2>File record</h2></div></div>
+      <dl class="data-list">
+        <dt>Path</dt><dd class="mono">{{ file.path }}</dd>
+        <dt>Kind</dt><dd>{{ file.kind }}</dd>
+        <dt>Size</dt><dd>{{ file.size|human_bytes }}</dd>
+        <dt>Words</dt><dd>{{ file.word_count }}</dd>
+        <dt>Title tag</dt><dd>{{ 'present' if file.has_title else 'missing' }}</dd>
+        <dt>Meta description</dt><dd>{{ 'present' if file.has_description else 'missing' }}</dd>
+        <dt>SHA-256</dt><dd class="mono small">{{ file.sha256[:20] if file.sha256 else 'not hashed' }}</dd>
+        <dt>Indexed</dt><dd>{{ file.indexed_at|time_ago }}</dd>
+      </dl>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><div><span class="kicker">Backlinks</span><h2>Referenced by</h2></div><span class="dim">{{ backlinks|length }}</span></div>
+      {% if backlinks %}
+      <div class="mini-list">
+        {% for link in backlinks %}
+        <a class="mini-list-row" href="/files/{{ link.file_id }}"><span class="mono">{{ link.source_path }}</span>{{ icon('arrow-right', 12) }}</a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state slim"><p>No indexed page points to this path.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="panel glass note-panel muted">
+      <div class="note-icon">{{ icon('shield', 19) }}</div>
+      <h3>No writes</h3>
+      <p>The preview is extracted text, not a live editor. Opening or reading a file never changes it.</p>
+    </section>
+  </aside>
+</div>
+{% endblock %}

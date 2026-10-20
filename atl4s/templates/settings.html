@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% from "partials/icon.html" import icon %}
+{% block content %}
+<section class="page-head">
+  <div>
+    <div class="eyebrow"><span class="status-dot is-live"></span> owner controls</div>
+    <h1>Settings</h1>
+    <p class="page-lede">Security boundaries, the two seats, live review windows, and the local vault.</p>
+  </div>
+  <div class="page-head-actions"><span class="owner-chip">{{ icon('shield', 14) }} Owner only</span></div>
+</section>
+
+{% if invite_link %}
+<section class="invite-banner glass">
+  <div class="invite-banner-icon">{{ icon('key', 20) }}</div>
+  <div>
+    <span class="kicker">One-time invite link</span>
+    <p class="mono invite-link" data-invite-link>{{ invite_link }}</p>
+    <span class="small dim">Shown once in this view. The database stores only a hash. Send it over a private channel.</span>
+  </div>
+  <button class="btn btn-ghost btn-sm" type="button" data-copy="{{ invite_link }}">{{ icon('copy', 14) }} Copy</button>
+</section>
+{% endif %}
+
+<section class="kpi-grid four">
+  <div class="kpi glass"><div class="kpi-icon">{{ icon('projects', 17) }}</div><div><span class="kpi-label">Projects</span><strong>{{ stats.projects }}</strong></div><span class="kpi-foot">{{ stats.files|human_count }} files indexed</span></div>
+  <div class="kpi glass"><div class="kpi-icon">{{ icon('audits', 17) }}</div><div><span class="kpi-label">Audits</span><strong>{{ stats.audits }}</strong></div><span class="kpi-foot">{{ stats.findings }} open findings</span></div>
+  <div class="kpi glass"><div class="kpi-icon">{{ icon('users', 17) }}</div><div><span class="kpi-label">Seats</span><strong>{{ users|length }}<span class="kpi-unit">/{{ max_users }}</span></strong></div><span class="kpi-foot">owner + one collaborator</span></div>
+  <div class="kpi glass"><div class="kpi-icon ok">{{ icon('key', 17) }}</div><div><span class="kpi-label">Providers</span><strong>{{ stats.providers }}</strong></div><span class="kpi-foot">local encrypted vault</span></div>
+</section>
+
+<div class="settings-layout">
+  <div class="stack">
+    <section class="panel glass">
+      <div class="panel-head"><div><span class="kicker">People</span><h2>Vault seats</h2></div><span class="dim">maximum {{ max_users }}</span></div>
+      <div class="people-list">
+        {% for person in users %}
+        <div class="person-row">
+          <div class="avatar">{{ person.name|initials }}</div>
+          <div class="person-main">
+            <strong>{{ person.name }}{% if person.id == user.id %}<span class="type-chip">you</span>{% endif %}</strong>
+            <span>{{ person.email }} · joined {{ person.created_at|time_ago }}</span>
+          </div>
+          <span class="role-chip role-{{ person.role }}">{{ person.role|replace('_', ' ')|title }}</span>
+          {% if person.role != 'owner' %}
+          <div class="person-actions">
+            <form method="post" action="/settings/users/{{ person.id }}/role" class="role-form">
+              <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+              <select name="role" class="select-compact"><option value="reviewer" {{ 'selected' if person.role == 'reviewer' else '' }}>Reviewer</option><option value="full_access" {{ 'selected' if person.role == 'full_access' else '' }}>Full access</option></select>
+              <input class="input-compact" type="password" name="password" placeholder="Owner password" autocomplete="current-password" required>
+              {% if user.totp_enabled %}<input class="input-compact mono" type="text" name="totp" inputmode="numeric" autocomplete="one-time-code" placeholder="6-digit code" pattern="[0-9]{6}" maxlength="6" required>{% endif %}
+              <button class="btn btn-quiet btn-sm" type="submit">Apply</button>
+            </form>
+            <form method="post" action="/settings/users/{{ person.id }}/revoke" data-confirm="Remove this collaborator and revoke their sessions?">
+              <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+              <button class="icon-btn danger" type="submit" title="Remove collaborator">{{ icon('trash', 15) }}</button>
+            </form>
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <div class="settings-note">{{ icon('info', 15) }} Elevating a reviewer to full access requires the owner password (step-up), not just a click.</div>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><div><span class="kicker">Invite</span><h2>Add the second seat</h2></div></div>
+      <form method="post" action="/settings/invite" class="invite-form">
+        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+        <label class="field"><span>Email</span><input type="email" name="email" required placeholder="collaborator@example.com"></label>
+        <label class="field"><span>Starting role</span><select name="role"><option value="reviewer">Reviewer · task-gated</option><option value="full_access">Full access · owner-approved</option></select></label>
+        <label class="field"><span>Owner password <em>full access only</em></span><input type="password" name="password" autocomplete="current-password" placeholder="Step-up password"></label>
+        {% if user.totp_enabled %}<label class="field"><span>Authenticator code</span><input class="mono" type="text" name="totp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" placeholder="123 456"></label>{% endif %}
+        <button class="btn btn-accent" type="submit">{{ icon('plus', 15) }} Create invite</button>
+      </form>
+      <p class="small dim invite-help">Reviewer invites require at least one live project session. Full access is never automatic and requires owner step-up before the invite is created.</p>
+
+      {% if invites %}
+      <div class="mini-list spaced">
+        <div class="mini-list-label">Pending invites</div>
+        {% for invite in invites %}
+        <div class="mini-list-row">
+          <span>{{ invite.email }}</span>
+          <span class="role-chip role-{{ invite.role }}">{{ invite.role|replace('_', ' ')|title }}</span>
+          <span class="mono dim">{{ invite.expires_at|time_until }}</span>
+          <form method="post" action="/settings/invites/{{ invite.id }}/revoke">
+            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+            <button class="icon-btn subtle" type="submit" title="Revoke invite">{{ icon('x', 14) }}</button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><div><span class="kicker">Presence-gated</span><h2>Live review windows</h2></div><span class="dim">{{ windows|length }} live</span></div>
+      {% if windows %}
+      <div class="window-list">
+        {% for window in windows %}
+        <div class="window-row">
+          <div class="window-icon">{{ icon('eye', 17) }}</div>
+          <div class="window-main"><strong>{{ window.title }}</strong><span><a href="/projects/{{ window.project_id }}">{{ window.project_name }}</a> · expires in <b class="mono">{{ window.expires_at|time_until }}</b></span></div>
+          <form method="post" action="/settings/windows/{{ window.id }}/end">
+            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+            <button class="btn btn-quiet btn-sm" type="submit">End</button>
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="empty-state slim"><p>No live task windows. Reviewer seats cannot sign in.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><div><span class="kicker">Appearance</span><h2>Atmosphere</h2></div></div>
+      <div class="appearance-grid">
+        <div>
+          <span class="label">Theme</span>
+          <div class="segmented" data-theme-segmented>
+            <button type="button" data-set-theme="auto">Auto</button>
+            <button type="button" data-set-theme="dark">Dark</button>
+            <button type="button" data-set-theme="light">Light</button>
+          </div>
+        </div>
+        <div>
+          <span class="label">Background</span>
+          <div class="segmented" data-scene-segmented>
+            <button type="button" data-set-scene="drift">Drift</button>
+            <button type="button" data-set-scene="still">Still</button>
+            <button type="button" data-set-scene="grain">Grain</button>
+            <button type="button" data-set-scene="none">Off</button>
+          </div>
+        </div>
+      </div>
+      <p class="small dim">Preferences live in this browser. Motion respects <span class="mono">prefers-reduced-motion</span>.</p>
+    </section>
+  </div>
+
+  <aside class="stack">
+    <section class="panel glass note-panel">
+      <div class="note-icon">{{ icon('database', 19) }}</div>
+      <h3>Local vault</h3>
+      <dl class="data-list">
+        <dt>Database</dt><dd class="mono">{{ database_path }}</dd>
+        <dt>Data directory</dt><dd class="mono">{{ data_dir }}</dd>
+        <dt>Cookies</dt><dd>{{ 'Secure' if secure_cookies else 'HTTP local' }}</dd>
+        <dt>Presence grace</dt><dd>{{ vault_grace }} seconds</dd>
+      </dl>
+      <p class="small dim">Back up the SQLite file and the local keys together. Provider secrets cannot be decrypted without the vault key.</p>
+      <a class="btn btn-ghost btn-sm" href="/account">{{ icon('shield', 14) }} Account security &amp; TOTP</a>
+    </section>
+
+    <section class="panel glass note-panel">
+      <div class="note-icon">{{ icon('shield', 19) }}</div>
+      <h3>Hard boundaries</h3>
+      <ul class="check-list">
+        <li>{{ icon('check', 13) }} Owner presence lock cannot be disabled by collaborators.</li>
+        <li>{{ icon('check', 13) }} Reviewer access is task/session gated.</li>
+        <li>{{ icon('check', 13) }} No automatic writes, commits, pushes, or deploys.</li>
+        <li>{{ icon('check', 13) }} Filesystem roots only widen through the owner account.</li>
+      </ul>
+    </section>
+
+    <section class="panel glass">
+      <div class="panel-head"><div><span class="kicker">Recent</span><h2>Event stream</h2></div><a class="icon-btn subtle" href="/activity" aria-label="All activity">{{ icon('arrow-right', 15) }}</a></div>
+      <div class="timeline compact">
+        {% for event in events %}
+        <div class="timeline-item"><span class="timeline-dot kind-{{ event.kind }}"></span><div><strong>{{ event.title }}</strong><span class="dim">{{ event.created_at|time_ago }}{% if event.user_name %} · {{ event.user_name }}{% endif %}</span></div></div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="panel glass note-panel muted">
+      <div class="note-icon">{{ icon('terminal', 19) }}</div>
+      <h3>Deployment note</h3>
+      <p>For Cloudflare Tunnel, set <span class="mono">ATL4S_SECURE_COOKIES=1</span> and pre-authorize both emails in Cloudflare Access. The Uvicorn port should stay bound to localhost.</p>
+    </section>
+  </aside>
+</div>
+{% endblock %}

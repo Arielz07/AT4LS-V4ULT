@@ -1,0 +1,72 @@
+{% extends "auth.html" %}
+{% from "partials/icon.html" import icon %}
+{% block card %}
+{% if invalid is defined and invalid %}
+<div class="card-head">
+  <span class="kicker">Invite state</span>
+  <h2>This invite is unavailable</h2>
+  <p>{{ reason if reason is defined else 'The link may have expired, been used, or been revoked.' }}</p>
+</div>
+<div class="empty-state compact">
+  <div class="empty-icon">{{ icon('key', 24) }}</div>
+  <p>Ask the owner for a fresh invite from vault settings.</p>
+  <a class="btn btn-ghost" href="/login">{{ icon('arrow-left', 15) }} Back to sign in</a>
+</div>
+{% elif vault_closed is defined and vault_closed %}
+<div class="card-head">
+  <span class="kicker">Presence lock</span>
+  <h2>The vault is closed</h2>
+  <p>Collaborator invites can only be accepted while the owner is present in the vault.</p>
+</div>
+<div class="login-state">
+  <div class="login-state-icon is-closed">{{ icon('lock', 18) }}</div>
+  <div><strong>Owner presence required</strong><p>Ask the owner to open the control room, then reopen this link.</p></div>
+</div>
+<a class="btn btn-ghost btn-wide" href="/login">{{ icon('arrow-left', 15) }} Back to sign in</a>
+{% elif no_task is defined and no_task %}
+<div class="card-head">
+  <span class="kicker">Reviewer access</span>
+  <h2>No live session</h2>
+  <p>Reviewer access is task-gated. The owner must open a live review session on a project before this invite can be accepted.</p>
+</div>
+<div class="empty-state compact">
+  <div class="empty-icon">{{ icon('scan', 24) }}</div>
+  <p>The link stays valid until it expires. Try again after a live session opens.</p>
+  <a class="btn btn-ghost" href="/login">{{ icon('arrow-left', 15) }} Back to sign in</a>
+</div>
+{% else %}
+<div class="card-head">
+  <span class="kicker">Invite · {{ invite.role|replace('_', ' ')|title }}</span>
+  <h2>Take the second seat</h2>
+  <p>You were invited to <strong>{{ invite.email }}</strong>. The owner remains the only account that can widen access or close the vault.</p>
+</div>
+<form method="post" action="{{ request.url.path }}" class="form-stack">
+  <input type="hidden" name="csrf" value="{{ invite_csrf }}">
+  <div class="field-row">
+    <label class="field">
+      <span>Your name</span>
+      <input type="text" name="name" value="{{ name if name is defined else '' }}" placeholder="Name" required maxlength="90" autofocus>
+    </label>
+    <label class="field">
+      <span>Email</span>
+      <input type="email" name="email" value="{{ invite.email }}" required autocomplete="email">
+    </label>
+  </div>
+  <label class="field">
+    <span>Password</span>
+    <input type="password" name="password" placeholder="At least 10 characters" required minlength="10" autocomplete="new-password">
+  </label>
+  <div class="invite-policy">
+    {{ icon('shield', 16) }}
+    <p>
+      {% if invite.role == 'reviewer' %}
+      Reviewer access ends when the live session ends or owner presence is lost.
+      {% else %}
+      Full access is broad inside the vault, but it cannot disable owner presence or widen filesystem roots.
+      {% endif %}
+    </p>
+  </div>
+  <button class="btn btn-accent btn-wide" type="submit">{{ icon('users', 16) }} Accept invite</button>
+</form>
+{% endif %}
+{% endblock %}

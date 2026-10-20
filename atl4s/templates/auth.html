@@ -1,0 +1,79 @@
+{% from "partials/icon.html" import icon %}
+<!doctype html>
+<html lang="en" data-theme="dark" data-scene="drift">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#070b09">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23070b09'/%3E%3Cpath d='M9 22 16 8l7 14' stroke='%23c9f36d' stroke-width='2.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <title>{{ page_title }} · ATL4S::V4UlT</title>
+  <script>
+    (() => {
+      try {
+        const pref = localStorage.getItem('atl4s-theme') || 'auto';
+        const resolved = pref === 'auto'
+          ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+          : pref;
+        document.documentElement.dataset.theme = resolved;
+        document.documentElement.dataset.themePref = pref;
+        document.documentElement.dataset.scene = localStorage.getItem('atl4s-scene') || 'drift';
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="auth-body">
+  {% include "partials/icons.html" %}
+  <div class="ambient" aria-hidden="true">
+    <div class="ambient-orb ambient-orb-a"></div>
+    <div class="ambient-orb ambient-orb-b"></div>
+    <div class="ambient-orb ambient-orb-c"></div>
+    <div class="ambient-grid"></div>
+    <div class="ambient-noise"></div>
+  </div>
+
+  <div class="auth-shell">
+    <header class="auth-top">
+      <a class="brand" href="/">
+        <span class="brand-glyph">{{ icon('spark', 17) }}</span>
+        <span class="brand-text">ATL4S<span class="brand-colon">::</span>V4UlT</span>
+      </a>
+      <span class="auth-top-meta">{{ icon('lock', 13) }} local vault · two seats</span>
+    </header>
+
+    <div class="auth-grid">
+      <section class="auth-story">
+        <div class="eyebrow"><span class="status-dot is-live"></span> private project intelligence</div>
+        <h1>One vault.<br><em>Two people.</em><br>No noise.</h1>
+        <p class="auth-lede">A quiet control room for websites and project folders. Index the filesystem, search what is actually there, and run evidence-first audits without handing the keys to an agent.</p>
+        <div class="auth-points">
+          <div class="auth-point">{{ icon('scan', 16) }}<span>Deterministic free baseline audits</span></div>
+          <div class="auth-point">{{ icon('shield', 16) }}<span>Owner presence lock, invite-only access</span></div>
+          <div class="auth-point">{{ icon('database', 16) }}<span>Local SQLite vault, read-only indexing</span></div>
+        </div>
+        <div class="auth-signal" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </section>
+
+      <section class="auth-card glass">
+        {% if error %}
+        <div class="flash flash-error" role="alert">{{ icon('alert', 17) }}<span>{{ error }}</span></div>
+        {% endif %}
+        {% if notice %}
+        <div class="flash flash-success" role="status">{{ icon('circle-check', 17) }}<span>{{ notice }}</span></div>
+        {% endif %}
+        {% block card %}{% endblock %}
+      </section>
+    </div>
+
+    <footer class="auth-foot">
+      <span>ATL4S::V4UlT</span>
+      <span>Owner presence is the master switch.</span>
+      <span class="dim">v{{ app_version }}</span>
+    </footer>
+  </div>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

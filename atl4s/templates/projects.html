@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% from "partials/icon.html" import icon %}
+
+{% block content %}
+<section class="page-head">
+  <div>
+    <div class="eyebrow"><span class="status-dot is-live"></span> filesystem registry</div>
+    <h1>Projects</h1>
+    <p class="page-lede">Read-only roots, indexed for search and evidence-first review.</p>
+  </div>
+  <div class="page-head-actions">
+    <a class="btn btn-quiet" href="/exports/files.csv">{{ icon('download', 15) }} Export CSV</a>
+    {% if is_owner %}<a class="btn btn-accent" href="/projects/new">{{ icon('plus', 16) }} Add project</a>{% endif %}
+  </div>
+</section>
+
+<section class="toolbar glass">
+  <form class="inline-search" action="/projects" method="get">
+    {{ icon('search', 16) }}
+    <input type="search" name="q" value="{{ query }}" placeholder="Filter by name, path, or description…" aria-label="Filter projects">
+    {% if query %}<a class="clear-search" href="/projects" aria-label="Clear filter">{{ icon('x', 14) }}</a>{% endif %}
+  </form>
+  <div class="toolbar-meta"><span>{{ projects|length }} project{{ '' if projects|length == 1 else 's' }}</span><span class="dot-sep">·</span><span class="dim">read-only indexing</span></div>
+</section>
+
+{% if projects %}
+<div class="project-grid">
+  {% for project in projects %}
+  <a class="project-card glass" href="/projects/{{ project.id }}">
+    <div class="project-card-top">
+      <div class="project-badge">{{ project.name[:2]|upper }}</div>
+      <span class="verdict verdict-{{ project.latest_verdict or 'none' }}">{{ project.latest_verdict|verdict_label }}</span>
+    </div>
+    <h2>{{ project.name }}</h2>
+    <p class="project-card-desc">{{ project.description or 'No description yet.' }}</p>
+    <span class="project-path mono">{{ project.root_path }}</span>
+    <div class="project-card-stats">
+      <span><b>{{ project.file_count|human_count }}</b> files</span>
+      <span><b>{{ project.total_bytes|human_bytes }}</b></span>
+      <span class="{{ 'text-warn' if project.open_findings else 'text-ok' }}"><b>{{ project.open_findings }}</b> open</span>
+    </div>
+    <div class="project-card-foot">
+      <span class="type-chip">{{ project.project_type }}</span>
+      <span class="dim">{{ project.last_indexed_at|time_ago if project.last_indexed_at else 'not indexed' }}</span>
+      {{ icon('arrow-right', 15, 'row-arrow') }}
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="panel glass empty-state large">
+  <div class="empty-icon">{{ icon('projects', 30) }}</div>
+  <h3>{{ 'No projects match that filter' if query else 'The vault has no projects yet' }}</h3>
+  <p>{{ 'Clear the filter or register another root.' if query else 'Register a website or project folder to start indexing. Nothing on disk is changed.' }}</p>
+  {% if is_owner %}<a class="btn btn-accent" href="/projects/new">{{ icon('plus', 15) }} Add project</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}
